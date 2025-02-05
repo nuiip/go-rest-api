@@ -2,21 +2,26 @@ package schema
 
 import (
 	"crypto/sha1"
-	"fmt"
+	"encoding/hex"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/jinzhu/inflection"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Namer namer interface
 type Namer interface {
 	TableName(table string) string
+	SchemaName(table string) string
 	ColumnName(table, column string) string
 	JoinTableName(joinTable string) string
 	RelationshipFKName(Relationship) string
 	CheckerName(table, column string) string
 	IndexName(table, column string) string
+	UniqueName(table, column string) string
 }
 
 // Replacer replacer interface like strings.Replacer
@@ -24,12 +29,15 @@ type Replacer interface {
 	Replace(name string) string
 }
 
+var _ Namer = (*NamingStrategy)(nil)
+
 // NamingStrategy tables, columns naming strategy
 type NamingStrategy struct {
-	TablePrefix   string
-	SingularTable bool
-	NameReplacer  Replacer
-	NoLowerCase   bool
+	TablePrefix         string
+	SingularTable       bool
+	NameReplacer        Replacer
+	NoLowerCase         bool
+	IdentifierMaxLength int
 }
 
 // TableName convert string to table name
@@ -38,6 +46,16 @@ func (ns NamingStrategy) TableName(str string) string {
 		return ns.TablePrefix + ns.toDBName(str)
 	}
 	return ns.TablePrefix + inflection.Plural(ns.toDBName(str))
+}
+
+// SchemaName generate schema name from table name, don't guarantee it is the reverse value of TableName
+func (ns NamingStrategy) SchemaName(table string) string {
+	table = strings.TrimPrefix(table, ns.TablePrefix)
+
+	if ns.SingularTable {
+		return ns.toSchemaName(table)
+	}
+	return ns.toSchemaName(inflection.Singular(table))
 }
 
 // ColumnName convert string to column name
@@ -72,17 +90,28 @@ func (ns NamingStrategy) IndexName(table, column string) string {
 	return ns.formatName("idx", table, ns.toDBName(column))
 }
 
-func (ns NamingStrategy) formatName(prefix, table, name string) string {
-	formatedName := strings.Replace(fmt.Sprintf("%v_%v_%v", prefix, table, name), ".", "_", -1)
+// UniqueName generate unique constraint name
+func (ns NamingStrategy) UniqueName(table, column string) string {
+	return ns.formatName("uni", table, ns.toDBName(column))
+}
 
-	if utf8.RuneCountInString(formatedName) > 64 {
+func (ns NamingStrategy) formatName(prefix, table, name string) string {
+	formattedName := strings.ReplaceAll(strings.Join([]string{
+		prefix, table, name,
+	}, "_"), ".", "_")
+
+	if ns.IdentifierMaxLength == 0 {
+		ns.IdentifierMaxLength = 64
+	}
+
+	if utf8.RuneCountInString(formattedName) > ns.IdentifierMaxLength {
 		h := sha1.New()
-		h.Write([]byte(formatedName))
+		h.Write([]byte(formattedName))
 		bs := h.Sum(nil)
 
-		formatedName = fmt.Sprintf("%v%v%v", prefix, table, name)[0:56] + string(bs)[:8]
+		formattedName = formattedName[0:ns.IdentifierMaxLength-8] + hex.EncodeToString(bs)[:8]
 	}
-	return formatedName
+	return formattedName
 }
 
 var (
@@ -94,7 +123,7 @@ var (
 func init() {
 	commonInitialismsForReplacer := make([]string, 0, len(commonInitialisms))
 	for _, initialism := range commonInitialisms {
-		commonInitialismsForReplacer = append(commonInitialismsForReplacer, initialism, strings.Title(strings.ToLower(initialism)))
+		commonInitialismsForReplacer = append(commonInitialismsForReplacer, initialism, cases.Title(language.Und).String(initialism))
 	}
 	commonInitialismsReplacer = strings.NewReplacer(commonInitialismsForReplacer...)
 }
@@ -105,7 +134,13 @@ func (ns NamingStrategy) toDBName(name string) string {
 	}
 
 	if ns.NameReplacer != nil {
-		name = ns.NameReplacer.Replace(name)
+		tmpName := ns.NameReplacer.Replace(name)
+
+		if tmpName == "" {
+			return name
+		}
+
+		name = tmpName
 	}
 
 	if ns.NoLowerCase {
@@ -150,4 +185,12 @@ func (ns NamingStrategy) toDBName(name string) string {
 	}
 	ret := buf.String()
 	return ret
+}
+
+func (ns NamingStrategy) toSchemaName(name string) string {
+	result := strings.ReplaceAll(cases.Title(language.Und, cases.NoLower).String(strings.ReplaceAll(name, "_", " ")), " ", "")
+	for _, initialism := range commonInitialisms {
+		result = regexp.MustCompile(cases.Title(language.Und, cases.NoLower).String(strings.ToLower(initialism))+"([A-Z]|$|_)").ReplaceAllString(result, initialism+"$1")
+	}
+	return result
 }

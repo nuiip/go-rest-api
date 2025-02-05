@@ -1,13 +1,13 @@
 package config
 
 import (
+	"log"
 	"os"
 
-	model "nuiip/go-rest-api/models"
 	util "nuiip/go-rest-api/utils"
 
 	"github.com/sirupsen/logrus"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -20,21 +20,20 @@ func Connection() *gorm.DB {
 		databaseURI <- os.Getenv("DATABASE_URI_PROD")
 	}
 
-	db, err := gorm.Open(postgres.Open(<-databaseURI), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(<-databaseURI), &gorm.Config{})
 
 	if err != nil {
-		defer logrus.Info("Connection to Database Failed")
-		logrus.Fatal(err.Error())
+		log.Fatal("Failed to connect to database:", err)
 	}
 
 	if os.Getenv("GO_ENV") != "production" {
 		logrus.Info("Connection to Database Successfully")
 	}
 
-	err = db.AutoMigrate(
-		&model.EntityUsers{},
-		&model.EntityStudent{},
-	)
+	// err = db.AutoMigrate(
+	// 	&model.EntityUsers{},
+	// 	&model.EntityStudent{},
+	// )
 
 	if err != nil {
 		logrus.Fatal(err.Error())

@@ -5,7 +5,7 @@ import (
 )
 
 type Service interface {
-	LoginService(input *InputLogin) (*model.EntityUsers, string)
+	LoginService(input *InputLogin) (*model.User, string)
 }
 
 type service struct {
@@ -16,10 +16,10 @@ func NewServiceLogin(repository Repository) *service {
 	return &service{repository: repository}
 }
 
-func (s *service) LoginService(input *InputLogin) (*model.EntityUsers, string) {
+func (s *service) LoginService(input *InputLogin) (*model.User, string) {
 
-	user := model.EntityUsers{
-		Email:    input.Email,
+	user := model.User{
+		Username: input.Username,
 		Password: input.Password,
 	}
 

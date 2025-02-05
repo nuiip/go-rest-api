@@ -7,7 +7,7 @@ import (
 )
 
 type Repository interface {
-	RegisterRepository(input *model.EntityUsers) (*model.EntityUsers, string)
+	RegisterRepository(input *model.User) (*model.User, string)
 }
 
 type repository struct {
@@ -18,20 +18,20 @@ func NewRepositoryRegister(db *gorm.DB) *repository {
 	return &repository{db: db}
 }
 
-func (r *repository) RegisterRepository(input *model.EntityUsers) (*model.EntityUsers, string) {
+func (r *repository) RegisterRepository(input *model.User) (*model.User, string) {
 
-	var users model.EntityUsers
+	var users model.User
 	db := r.db.Model(&users)
 	errorCode := make(chan string, 1)
 
-	checkUserAccount := db.Debug().Select("*").Where("email = ?", input.Email).Find(&users)
+	checkUserAccount := db.Debug().Select("*").Where("username = ?", input.Username).Find(&users)
 
 	if checkUserAccount.RowsAffected > 0 {
 		errorCode <- "REGISTER_CONFLICT_409"
 		return &users, <-errorCode
 	}
 
-	users.Fullname = input.Fullname
+	users.Username = input.Username
 	users.Email = input.Email
 	users.Password = input.Password
 

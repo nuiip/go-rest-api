@@ -36,9 +36,9 @@ func SetupRouter() *gin.Engine {
 	/**
 	@description Setup Mode Application
 	*/
-	if util.GodotEnv("GO_ENV") != "production" && util.GodotEnv("GO_ENV") != "test" {
+	if util.GodotEnv("GO_ENV") != "PROD" && util.GodotEnv("GO_ENV") != "test" {
 		gin.SetMode(gin.DebugMode)
-	} else if util.GodotEnv("GO_ENV") == "test" {
+	} else if util.GodotEnv("GO_ENV") == "DEV" {
 		gin.SetMode(gin.TestMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -57,8 +57,10 @@ func SetupRouter() *gin.Engine {
 	/**
 	@description Init All Route
 	*/
+	route.InitGooRoutes(db, router)
 	route.InitAuthRoutes(db, router)
 	route.InitStudentRoutes(db, router)
+	route.InitUserRoutes(db, router)
 
 	return router
 }

@@ -1,6 +1,7 @@
 package login
 
 import (
+	"fmt"
 	model "nuiip/go-rest-api/models"
 	util "nuiip/go-rest-api/utils"
 
@@ -8,7 +9,7 @@ import (
 )
 
 type Repository interface {
-	LoginRepository(input *model.EntityUsers) (*model.EntityUsers, string)
+	LoginRepository(input *model.User) (*model.User, string)
 }
 
 type repository struct {
@@ -19,26 +20,29 @@ func NewRepositoryLogin(db *gorm.DB) *repository {
 	return &repository{db: db}
 }
 
-func (r *repository) LoginRepository(input *model.EntityUsers) (*model.EntityUsers, string) {
+func (r *repository) LoginRepository(input *model.User) (*model.User, string) {
 
-	var users model.EntityUsers
+	var users model.User
 	db := r.db.Model(&users)
 	errorCode := make(chan string, 1)
 
 	users.Email = input.Email
 	users.Password = input.Password
 
-	checkUserAccount := db.Debug().Select("*").Where("email = ?", input.Email).Find(&users)
+	checkUserAccount := db.Debug().Select("*").Where("username = ?", input.Username).Find(&users)
 
 	if checkUserAccount.RowsAffected < 1 {
 		errorCode <- "LOGIN_NOT_FOUND_404"
 		return &users, <-errorCode
 	}
 
-	if !users.Active {
-		errorCode <- "LOGIN_NOT_ACTIVE_403"
-		return &users, <-errorCode
-	}
+	// if !users.Status {
+	// 	errorCode <- "LOGIN_NOT_ACTIVE_403"
+	// 	return &users, <-errorCode
+	// }
+
+	fmt.Println(input.Password)
+	fmt.Println(users.Password)
 
 	comparePassword := util.ComparePassword(users.Password, input.Password)
 

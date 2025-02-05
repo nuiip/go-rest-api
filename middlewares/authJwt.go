@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 
 	util "nuiip/go-rest-api/utils"
@@ -32,7 +33,7 @@ func Auth() gin.HandlerFunc {
 		}
 
 		token, err := util.VerifyTokenHeader(ctx, "JWT_SECRET")
-
+		fmt.Println(token)
 		errorResponse.Status = "Unathorizated"
 		errorResponse.Code = http.StatusUnauthorized
 		errorResponse.Method = ctx.Request.Method

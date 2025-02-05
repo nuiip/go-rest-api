@@ -28,8 +28,8 @@ func (h *handler) RegisterHandler(ctx *gin.Context) {
 		Options: []gpc.ErrorMetaConfig{
 			gpc.ErrorMetaConfig{
 				Tag:     "required",
-				Field:   "Fullname",
-				Message: "fullname is required on body",
+				Field:   "Username",
+				Message: "username is required on body",
 			},
 			gpc.ErrorMetaConfig{
 				Tag:     "required",
@@ -66,7 +66,7 @@ func (h *handler) RegisterHandler(ctx *gin.Context) {
 	switch errRegister {
 
 	case "REGISTER_CONFLICT_409":
-		util.APIResponse(ctx, "Email already exist", http.StatusConflict, http.MethodPost, nil)
+		util.APIResponse(ctx, "User already exist", http.StatusConflict, http.MethodPost, nil)
 		return
 
 	case "REGISTER_FAILED_403":
@@ -83,7 +83,7 @@ func (h *handler) RegisterHandler(ctx *gin.Context) {
 			return
 		}
 
-		_, errSendMail := util.SendGridMail(resultRegister.Fullname, resultRegister.Email, "Activation Account", "template_register", accessToken)
+		_, errSendMail := util.SendGridMail(resultRegister.Username, resultRegister.Email, "Activation Account", "template_register", accessToken)
 
 		if errSendMail != nil {
 			defer logrus.Error(errSendMail.Error())
